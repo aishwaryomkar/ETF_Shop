@@ -1,0 +1,16 @@
+[Unit]
+Description=ETF Shop daily accumulation run
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=etfshop
+WorkingDirectory=/home/etfshop/etf_shop
+# Secrets injected from an EnvironmentFile with 0600 perms (NOT committed).
+# On AWS, prefer fetching these from SSM Parameter Store in an ExecStartPre
+# script instead of a plaintext file. On Oracle, use OCI Vault similarly.
+EnvironmentFile=/home/etfshop/etf_shop/.env
+ExecStart=/home/etfshop/etf_shop/venv/bin/python /home/etfshop/etf_shop/main.py
+StandardOutput=append:/home/etfshop/etf_shop/logs/systemd.log
+StandardError=append:/home/etfshop/etf_shop/logs/systemd.log

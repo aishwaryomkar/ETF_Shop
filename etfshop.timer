@@ -1,0 +1,12 @@
+[Unit]
+Description=Run ETF Shop on NSE trading-day mornings
+
+[Timer]
+# 09:45 IST, Monday-Friday. The box should be set to Asia/Kolkata
+# (sudo timedatectl set-timezone Asia/Kolkata) so this lines up with the market.
+# 09:45 leaves the opening auction (09:08-09:15) and early volatility behind.
+OnCalendar=Mon-Fri 09:45
+Persistent=true
+
+[Install]
+WantedBy=timers.target

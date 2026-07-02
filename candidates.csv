@@ -1,0 +1,26 @@
+symbol,category,notes
+SETFNIF50,MCAP,Nifty 50 (SBI)
+SETFNN50,MCAP,Nifty Next 50 (SBI)
+SBINMID150,MCAP,Nifty Midcap 150 (SBI) - VERIFY exact tradingsymbol
+MONIFTY500,MCAP,Nifty 500 (verify exact NSE-listed symbol on broker)
+LOWVOLIETF,MCAP,Nifty 100 Low Volatility - treated as MCAP-style core not thematic
+QUAL30IETF,MCAP,Nifty Quality 30 - VERIFY exact tradingsymbol - factor/strategy index
+ALPHAETF,THEMATIC,Nifty Alpha 50 - VERIFY exact tradingsymbol - concentrated factor bet
+SETFNIFBK,THEMATIC,Nifty Bank (SBI)
+ITBEES,THEMATIC,Nifty IT
+PSUBNKBEES,THEMATIC,Nifty PSU Bank
+PHARMABEES,THEMATIC,Nifty Pharma
+CPSEETF,THEMATIC,CPSE (PSU basket)
+INFRABEES,THEMATIC,Nifty Infrastructure (Nippon)
+CONSUMBEES,THEMATIC,Nifty India Consumption (Nippon)
+AUTOIETF,THEMATIC,Nifty Auto
+HEALTHIETF,THEMATIC,Nifty Healthcare
+FMCGIETF,THEMATIC,Nifty FMCG
+METALIETF,THEMATIC,Nifty Metal
+ENERGYIETF,THEMATIC,Nifty Energy
+MOREALTY,THEMATIC,Motilal Oswal Nifty Realty ETF - VERIFY exact tradingsymbol
+PVTBANIETF,THEMATIC,Nifty Private Bank
+MOM30IETF,THEMATIC,Nifty200 Momentum 30 (strategy index - treated as thematic since concentrated)
+MODEFENCE,THEMATIC,Motilal Oswal Nifty India Defence ETF - VERIFY exact tradingsymbol
+MNC,THEMATIC,Nifty MNC 
+MOSERVICE,THEMATIC,Nifty Services Sector - VERIFY exact tradingsymbol
