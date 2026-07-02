@@ -85,12 +85,50 @@ else
         err "venv creation failed. Try: sudo dnf install python39-devel"
 fi
 
+# Copy pip.conf into the venv so real PyPI is used for ALL pip calls inside
+# it, regardless of the system /etc/pip.conf pointing at Oracle's old mirror.
+if [ -f "$REPO_DIR/pip.conf" ]; then
+    cp "$REPO_DIR/pip.conf" "$VENV_DIR/pip.conf"
+    info "pip.conf copied into venv — real PyPI will be used."
+fi
+
 PIP="$VENV_DIR/bin/pip"
 info "Upgrading pip inside the venv..."
 "$PIP" install --upgrade pip --quiet
 
+# ---- Oracle Cloud PyPI mirror workaround ------------------------------------
+# Oracle Cloud VMs ship with pip configured to use an internal Oracle mirror
+# (oracle.com/apm or similar) that only has packages up to ~late 2020.
+# kiteconnect 4.x, pandas 1.3+, pyotp 2.9 etc. all post-date that cutoff and
+# simply won't be found. Detect this and inject the real PyPI as primary index.
+CONFIGURED_INDEX=$("$PIP" config list 2>/dev/null | grep "index-url" || true)
+if echo "$CONFIGURED_INDEX" | grep -qi "oracle"; then
+    warn "Oracle internal PyPI mirror detected: $CONFIGURED_INDEX"
+    warn "This mirror only has packages up to ~Nov 2020. Switching to real PyPI."
+    "$PIP" config set global.index-url https://pypi.org/simple/ 2>/dev/null || true
+fi
+
+# Probe: can we see pandas >= 1.3 on whatever index is configured?
+PANDAS_OK=$("$PIP" index versions pandas 2>/dev/null | grep -oE "1\.[3-9]\.|2\." | head -1 || true)
+if [ -z "$PANDAS_OK" ]; then
+    warn "Current pip index doesn't have pandas >= 1.3. Trying real PyPI explicitly."
+    INSTALL_FLAGS="--index-url https://pypi.org/simple/"
+else
+    INSTALL_FLAGS=""
+fi
+
 info "Installing requirements..."
-"$PIP" install -r "$REPO_DIR/requirements.txt" --quiet
+# shellcheck disable=SC2086
+"$PIP" install $INSTALL_FLAGS -r "$REPO_DIR/requirements.txt" --quiet || {
+    warn "Install failed with default index. Retrying with real PyPI as primary..."
+    "$PIP" install --index-url https://pypi.org/simple/ \
+        -r "$REPO_DIR/requirements.txt" --quiet || \
+        err "Install still failed. Check outbound HTTPS to pypi.org:
+  curl -I https://pypi.org/simple/pandas/
+If that times out, pypi.org is blocked from this VM. Add a firewall egress
+rule on Oracle Cloud Console: Networking > VCN > Security Lists > add
+outbound rule for port 443 to 0.0.0.0/0."
+}
 info "Requirements installed."
 
 # -----------------------------------------------------------------------
