@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 kite_auth.py — daily Kite Connect authentication.
 

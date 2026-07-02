@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 screener.py — ranks the basket by momentum_score, both overall and per
 category (MCAP / THEMATIC), since the SIP only ever looks at the MCAP

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 entry_filter.py — decides which ranked candidates are ELIGIBLE to be bought
 today. Ranking alone isn't enough: the #1 momentum name could be in a

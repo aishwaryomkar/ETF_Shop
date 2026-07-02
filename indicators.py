@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 indicators.py — plain-pandas technicals + the momentum composite score.
 No TA-Lib. All functions are pure (take a DataFrame/Series, return numbers) so

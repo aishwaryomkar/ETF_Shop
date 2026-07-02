@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 risk_engine.py — turns "these candidates are eligible to buy" into actual
 rupee tranches, sized off ACCUMULATED LIQUIDITY (cash + LIQUIDCASE value),

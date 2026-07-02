@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 portfolio.py — persisted multi-symbol state.
 

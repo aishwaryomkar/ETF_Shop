@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 strategy.py — the brain. One call (`decide`) per day, returns a full list of
 intended actions for order_engine.py to execute (or log, in DRY_RUN).

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 exit_engine.py — decides what (if anything) to sell today.
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 bootstrap_holdings.py — seed state/portfolio.json from your ACTUAL Kite
 holdings, instead of starting the engine from zero and waiting on a ₹5k/month

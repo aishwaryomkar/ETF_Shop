@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 universe.py — turns candidates.csv into today's tradeable basket of
 config.BASKET_SIZE ETFs, screened for liquidity.
