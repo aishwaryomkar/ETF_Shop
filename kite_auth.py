@@ -28,10 +28,30 @@ import json
 import stat
 import time
 import logging
+import pathlib
 
 from kiteconnect import KiteConnect
 
 log = logging.getLogger("kite_auth")
+
+
+def _load_dotenv() -> None:
+    """Auto-load .env from the repo root. Safe if the file doesn't exist.
+    Does NOT overwrite env vars already set in the shell (real env wins)."""
+    env_path = pathlib.Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip()
+            if key and key not in os.environ:
+                os.environ[key] = val
+
+_load_dotenv()
 
 TOKEN_FILE = "state/access_token.json"
 
