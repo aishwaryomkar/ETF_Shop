@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ETF Shop — Strategy Runner</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-large {
+            padding: 20px 40px;
+            font-size: 1.3em;
+            width: 100%;
+            margin: 20px 0;
+        }
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        .status.info {
+            background: #bee3f8;
+            color: #2c5282;
+            border: 1px solid #90cdf4;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .portfolio-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .portfolio-item h3 {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            color: #2d3748;
+        }
+        .portfolio-item p {
+            font-size: 0.9em;
+            color: #718096;
+            margin: 2px 0;
+        }
+        .holdings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .holdings-table th,
+        .holdings-table td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .holdings-table th {
+            background: #edf2f7;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .holdings-table tr:hover {
+            background: #f7fafc;
+        }
+        .pnl-positive {
+            color: #22863a;
+            font-weight: 600;
+        }
+        .pnl-negative {
+            color: #cb2431;
+            font-weight: 600;
+        }
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.95em;
+        }
+        .rank-item:last-child {
+            border-bottom: none;
+        }
+        .login-screen {
+            text-align: center;
+        }
+        .login-screen h2 {
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+        .login-screen code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .input-group {
+            margin: 15px 0;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const API_BASE = "http://localhost:5000/api";
+
+        function App() {
+            const [authenticated, setAuthenticated] = useState(false);
+            const [loading, setLoading] = useState(true);
+            const [portfolio, setPortfolio] = useState(null);
+            const [ranked, setRanked] = useState([]);
+            const [status, setStatus] = useState(null);
+            const [runLoading, setRunLoading] = useState(false);
+            const [requestToken, setRequestToken] = useState("");
+            const [loginUrl, setLoginUrl] = useState("");
+
+            useEffect(() => {
+                checkAuth();
+            }, []);
+
+            async function checkAuth() {
+                try {
+                    const res = await fetch(`${API_BASE}/auth-status`);
+                    const data = await res.json();
+                    setAuthenticated(data.authenticated);
+                    if (data.authenticated) {
+                        fetchPortfolio();
+                    } else {
+                        fetchLoginUrl();
+                    }
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Could not check auth: " + e.message });
+                } finally {
+                    setLoading(false);
+                }
+            }
+
+            async function fetchLoginUrl() {
+                try {
+                    const res = await fetch(`${API_BASE}/login-url`);
+                    const data = await res.json();
+                    setLoginUrl(data.login_url);
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Could not get login URL: " + e.message });
+                }
+            }
+
+            async function handleLogin() {
+                if (!requestToken.trim()) {
+                    setStatus({ type: "error", msg: "request_token is required" });
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_BASE}/login`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ request_token: requestToken }),
+                    });
+                    if (res.ok) {
+                        setStatus({ type: "success", msg: "Logged in!" });
+                        setRequestToken("");
+                        setAuthenticated(true);
+                        fetchPortfolio();
+                    } else {
+                        const err = await res.json();
+                        setStatus({ type: "error", msg: err.error });
+                    }
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Login failed: " + e.message });
+                }
+            }
+
+            async function fetchPortfolio() {
+                try {
+                    const res = await fetch(`${API_BASE}/portfolio`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setPortfolio(data);
+                    }
+                } catch (e) {
+                    console.error("Could not fetch portfolio:", e);
+                }
+            }
+
+            async function runStrategy() {
+                setRunLoading(true);
+                setStatus(null);
+                try {
+                    const res = await fetch(`${API_BASE}/run-strategy`, {
+                        method: "POST",
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        setStatus({
+                            type: "success",
+                            msg: `Strategy run complete. Portfolio value: Rs ${data.portfolio_value.toLocaleString()}`,
+                        });
+                        setRanked(data.ranked);
+                        fetchPortfolio();
+                    } else {
+                        setStatus({ type: "error", msg: data.error });
+                    }
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Strategy run failed: " + e.message });
+                } finally {
+                    setRunLoading(false);
+                }
+            }
+
+            async function logout() {
+                try {
+                    await fetch(`${API_BASE}/logout`, { method: "POST" });
+                    setAuthenticated(false);
+                    setPortfolio(null);
+                    setRanked([]);
+                    setStatus({ type: "success", msg: "Logged out" });
+                    fetchLoginUrl();
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Logout failed: " + e.message });
+                }
+            }
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <div className="card">
+                            <div className="loading">
+                                <div className="spinner"></div>
+                                <p>Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!authenticated) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>ETF Shop</h1>
+                            <p>Strategy Runner</p>
+                        </div>
+                        <div className="card login-screen">
+                            <h2>Log in with Zerodha</h2>
+                            {status && <div className={`status ${status.type}`}>{status.msg}</div>}
+                            {loginUrl && (
+                                <div>
+                                    <p>
+                                        <a href={loginUrl} target="_blank" rel="noopener noreferrer">
+                                            Click here to log in with Zerodha
+                                        </a>
+                                    </p>
+                                    <p style={{ margin: "20px 0" }}>Then paste the <code>request_token</code> from the redirect URL:</p>
+                                </div>
+                            )}
+                            <div className="input-group">
+                                <label>request_token</label>
+                                <input
+                                    type="text"
+                                    value={requestToken}
+                                    onChange={(e) => setRequestToken(e.target.value)}
+                                    placeholder="e.g., XXXXXXXXXXXXXX"
+                                />
+                            </div>
+                            <button className="btn btn-primary btn-large" onClick={handleLogin}>
+                                Log In
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>ETF Shop</h1>
+                        <p>Strategy Runner</p>
+                    </div>
+
+                    <div className="card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                            <h2>Dashboard</h2>
+                            <button className="btn btn-danger" onClick={logout}>
+                                Log Out
+                            </button>
+                        </div>
+
+                        {status && <div className={`status ${status.type}`}>{status.msg}</div>}
+
+                        <button
+                            className="btn btn-primary btn-large"
+                            onClick={runStrategy}
+                            disabled={runLoading}
+                        >
+                            {runLoading ? "Running..." : "▶ Run Strategy"}
+                        </button>
+
+                        {portfolio && (
+                            <div>
+                                <div className="portfolio-grid">
+                                    <div className="portfolio-item">
+                                        <h3>Portfolio Value</h3>
+                                        <p style={{ fontSize: "1.5em", color: "#667eea", fontWeight: "bold" }}>
+                                            Rs {portfolio.total_value.toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="portfolio-item">
+                                        <h3>Cash</h3>
+                                        <p>Rs {portfolio.cash.toLocaleString()}</p>
+                                    </div>
+                                    <div className="portfolio-item">
+                                        <h3>War Chest (LIQUIDCASE)</h3>
+                                        <p>{portfolio.liquidcase_units.toFixed(4)} units</p>
+                                        <p>Rs {portfolio.liquidcase_value.toLocaleString()}</p>
+                                    </div>
+                                </div>
+
+                                {portfolio.holdings.length > 0 && (
+                                    <div>
+                                        <h3 style={{ marginTop: "30px", marginBottom: "15px" }}>Holdings</h3>
+                                        <table className="holdings-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Symbol</th>
+                                                    <th>Units</th>
+                                                    <th>Avg Cost</th>
+                                                    <th>LTP</th>
+                                                    <th>Value</th>
+                                                    <th>P&L</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {portfolio.holdings.map((h) => (
+                                                    <tr key={h.symbol}>
+                                                        <td><strong>{h.symbol}</strong></td>
+                                                        <td>{h.units.toFixed(4)}</td>
+                                                        <td>Rs {h.avg_cost}</td>
+                                                        <td>Rs {h.ltp}</td>
+                                                        <td>Rs {h.value.toLocaleString()}</td>
+                                                        <td className={h.pnl >= 0 ? "pnl-positive" : "pnl-negative"}>
+                                                            Rs {h.pnl.toLocaleString()} ({h.pnl_pct.toFixed(2)}%)
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {ranked.length > 0 && (
+                                    <div>
+                                        <h3 style={{ marginTop: "30px", marginBottom: "15px" }}>Today's Rankings</h3>
+                                        {ranked.map((r) => (
+                                            <div key={r.symbol} className="rank-item">
+                                                <div>
+                                                    <strong>#{r.rank}</strong> {r.symbol} ({r.category})
+                                                </div>
+                                                <div>Score: {r.score.toFixed(3)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+</body>
+</html>
