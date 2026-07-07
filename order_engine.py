@@ -101,7 +101,6 @@ def sweep_and_get_liquidbees_ltp(kite, state: dict) -> float:
 
 def execute_buys(kite, state: dict, buys: dict, label: str,
                  liquidbees_ltp: float) -> None:
-def execute_buys(kite, state, buys, label, liquidbees_ltp):
     for sym, value in buys.items():
         if not _can_order(state):
             break
