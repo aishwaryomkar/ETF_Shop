@@ -101,18 +101,40 @@ def sweep_and_get_liquidbees_ltp(kite, state: dict) -> float:
 
 def execute_buys(kite, state: dict, buys: dict, label: str,
                  liquidbees_ltp: float) -> None:
+def execute_buys(kite, state, buys, label, liquidbees_ltp):
     for sym, value in buys.items():
         if not _can_order(state):
             break
         if value < config.MIN_ORDER_VALUE:
             continue
-        available = lb.draw_funds(state, value, liquidbees_ltp)
-        spend = min(value, available)
+        
+        # If we don't have enough cash, sell LIQUIDCASE first
+        if state["cash"] < value and state["liquidbees_units"] > 0:
+            shortfall = value - state["cash"]
+            units_needed = shortfall / liquidbees_ltp
+            units_to_sell = min(units_needed, state["liquidbees_units"])
+            
+            if units_to_sell > 1e-6:
+                qty = int(units_to_sell)
+                if qty >= 1:
+                    limit_price = _limit_price(liquidbees_ltp, "SELL")
+                    oid = _place(kite, config.LIQUID_ETF, "SELL", qty, limit_price)
+                    if oid:
+                        redeemed = qty * liquidbees_ltp
+                        state["liquidbees_units"] -= qty
+                        state["cash"] += redeemed
+                        state["orders_today"] += 1
+                        log.info("Redeemed %.0f %s units (Rs %.0f) to fund %s buy",
+                                 qty, config.LIQUID_ETF, redeemed, sym)
+        
+        # Now buy the actual ETF with available cash
+        spend = min(value, state["cash"])
         if spend < config.MIN_ORDER_VALUE:
             log.info("%s buy for %s skipped — insufficient funds even after "
-                     "drawing the war chest (needed Rs %.0f, had Rs %.0f).",
-                     label, sym, value, available)
+                     "redeeming war chest (needed Rs %.0f, had Rs %.0f).",
+                     label, sym, value, spend)
             continue
+        
         ltp = dfetch.get_ltp(kite, sym)
         limit = _limit_price(ltp, "BUY")
         qty = int(spend // limit)
