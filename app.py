@@ -287,6 +287,69 @@ def telemetry():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/bootstrap-preview", methods=["GET"])
+@require_auth
+def bootstrap_preview():
+    """Dry-run bootstrap: show what holdings would be mapped without writing anything."""
+    try:
+        import bootstrap_holdings as bh
+        kite = get_kite(force_login=False)
+        holdings = kite.holdings()
+        whitelist = bh._load_etf_whitelist()
+        known_dates = bh._load_known_dates()
+        state, ignored = bh.build_state(holdings, whitelist, known_dates)
+
+        mapped = []
+        for sym, pos in state["positions"].items():
+            units = sum(lot["shares"] for lot in pos["lots"])
+            avg = (sum(lot["shares"] * lot["price"] for lot in pos["lots"]) / units
+                   if units else 0)
+            mapped.append({
+                "symbol": sym,
+                "category": whitelist.get(sym, "?"),
+                "units": round(units, 4),
+                "avg_cost": round(avg, 2),
+                "value": round(units * avg, 2),
+                "lots": pos["lots"],
+            })
+
+        names = bh._instrument_names(kite) if ignored else {}
+        possible_misses = [u for u in ignored
+                           if "etf" in names.get(u["symbol"], "").lower()]
+
+        return jsonify({
+            "mapped": mapped,
+            "liquidcase_units": round(state["liquidbees_units"], 4),
+            "ignored_count": len(ignored),
+            "possible_misses": possible_misses,
+            "portfolio_exists": __import__("os").path.exists(
+                __import__("config").PORTFOLIO_FILE),
+        })
+    except Exception as e:
+        log.error("Bootstrap preview failed: %s", e, exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/bootstrap-apply", methods=["POST"])
+@require_auth
+def bootstrap_apply():
+    """Apply bootstrap: write state/portfolio.json from live broker holdings."""
+    try:
+        import bootstrap_holdings as bh
+        kite = get_kite(force_login=False)
+        holdings = kite.holdings()
+        whitelist = bh._load_etf_whitelist()
+        known_dates = bh._load_known_dates()
+        state, _ = bh.build_state(holdings, whitelist, known_dates)
+        pf.save(state)
+        mapped_count = len(state["positions"])
+        log.info("Bootstrap applied: %d positions written to portfolio.json", mapped_count)
+        return jsonify({"status": "success", "mapped_count": mapped_count})
+    except Exception as e:
+        log.error("Bootstrap apply failed: %s", e, exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/health", methods=["GET"])
 def health():
     """Health check."""

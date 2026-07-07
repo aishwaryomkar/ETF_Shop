@@ -71,6 +71,18 @@
             width: 100%;
             margin: 20px 0;
         }
+        .btn-secondary {
+            background: #718096;
+            color: white;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+        .btn-secondary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .btn-danger {
             background: #f56565;
             color: white;
@@ -220,11 +232,14 @@
             const [authenticated, setAuthenticated] = useState(false);
             const [loading, setLoading] = useState(true);
             const [portfolio, setPortfolio] = useState(null);
-            const [ranked, setRanked] = useState([]);
+            const [runResult, setRunResult] = useState(null);
             const [status, setStatus] = useState(null);
             const [runLoading, setRunLoading] = useState(false);
             const [requestToken, setRequestToken] = useState("");
             const [loginUrl, setLoginUrl] = useState("");
+            const [bootstrapPreview, setBootstrapPreview] = useState(null);
+            const [bootstrapLoading, setBootstrapLoading] = useState(false);
+            const [bootstrapApplying, setBootstrapApplying] = useState(false);
 
             useEffect(() => {
                 checkAuth();
@@ -297,17 +312,13 @@
             async function runStrategy() {
                 setRunLoading(true);
                 setStatus(null);
+                setRunResult(null);
                 try {
-                    const res = await fetch(`${API_BASE}/run-strategy`, {
-                        method: "POST",
-                    });
+                    const res = await fetch(`${API_BASE}/run-strategy`, { method: "POST" });
                     const data = await res.json();
                     if (res.ok) {
-                        setStatus({
-                            type: "success",
-                            msg: `Strategy run complete. Portfolio value: Rs ${data.portfolio_value.toLocaleString()}`,
-                        });
-                        setRanked(data.ranked);
+                        setRunResult(data);
+                        setStatus({ type: "success", msg: `Strategy run complete — DRY_RUN is ON, no real orders placed.` });
                         fetchPortfolio();
                     } else {
                         setStatus({ type: "error", msg: data.error });
@@ -319,12 +330,49 @@
                 }
             }
 
+            async function loadBootstrapPreview() {
+                setBootstrapLoading(true);
+                setBootstrapPreview(null);
+                setStatus(null);
+                try {
+                    const res = await fetch(`${API_BASE}/bootstrap-preview`);
+                    const data = await res.json();
+                    if (res.ok) setBootstrapPreview(data);
+                    else setStatus({ type: "error", msg: data.error });
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Bootstrap preview failed: " + e.message });
+                } finally {
+                    setBootstrapLoading(false);
+                }
+            }
+
+            async function applyBootstrap() {
+                if (!confirm("This will overwrite state/portfolio.json with your live Kite holdings. Continue?")) return;
+                setBootstrapApplying(true);
+                try {
+                    const res = await fetch(`${API_BASE}/bootstrap-apply`, { method: "POST" });
+                    const data = await res.json();
+                    if (res.ok) {
+                        setStatus({ type: "success", msg: `Bootstrap applied — ${data.mapped_count} position(s) written to portfolio.json.` });
+                        setBootstrapPreview(null);
+                        fetchPortfolio();
+                    } else {
+                        setStatus({ type: "error", msg: data.error });
+                    }
+                } catch (e) {
+                    setStatus({ type: "error", msg: "Bootstrap apply failed: " + e.message });
+                } finally {
+                    setBootstrapApplying(false);
+                }
+            }
+
             async function logout() {
                 try {
                     await fetch(`${API_BASE}/logout`, { method: "POST" });
                     setAuthenticated(false);
                     setPortfolio(null);
-                    setRanked([]);
+                    setRunResult(null);
+                    setBootstrapPreview(null);
                     setStatus({ type: "success", msg: "Logged out" });
                     fetchLoginUrl();
                 } catch (e) {
@@ -399,13 +447,66 @@
 
                         {status && <div className={`status ${status.type}`}>{status.msg}</div>}
 
-                        <button
-                            className="btn btn-primary btn-large"
-                            onClick={runStrategy}
-                            disabled={runLoading}
-                        >
-                            {runLoading ? "Running..." : "▶ Run Strategy"}
-                        </button>
+                        <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
+                            <button className="btn btn-primary btn-large" onClick={runStrategy} disabled={runLoading} style={{ flex: 1 }}>
+                                {runLoading ? "Running..." : "▶ Run Strategy"}
+                            </button>
+                            <button className="btn btn-secondary btn-large" onClick={loadBootstrapPreview} disabled={bootstrapLoading} style={{ whiteSpace: "nowrap" }}>
+                                {bootstrapLoading ? "Loading..." : "⚙ Bootstrap Holdings"}
+                            </button>
+                        </div>
+
+                        {/* Bootstrap Holdings Panel */}
+                        {bootstrapPreview && (
+                            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "20px", marginTop: "20px", background: "#f7fafc" }}>
+                                <h3 style={{ marginBottom: "4px" }}>Bootstrap Holdings — Preview</h3>
+                                <p style={{ color: "#718096", fontSize: "0.9em", marginBottom: "16px" }}>
+                                    These positions from your live Kite account will be written to <code>state/portfolio.json</code>.
+                                    Only symbols in <code>candidates.csv</code> are included — all stocks and non-whitelisted ETFs are left untouched.
+                                </p>
+                                {bootstrapPreview.portfolio_exists && (
+                                    <div className="status error" style={{ marginBottom: "12px" }}>
+                                        ⚠ <code>state/portfolio.json</code> already exists and will be <strong>overwritten</strong> if you apply.
+                                    </div>
+                                )}
+                                {bootstrapPreview.mapped.length === 0 ? (
+                                    <p style={{ color: "#718096" }}>No whitelisted ETF holdings found in your Kite account.</p>
+                                ) : (
+                                    <table className="holdings-table" style={{ marginBottom: "16px" }}>
+                                        <thead><tr><th>Symbol</th><th>Category</th><th>Units</th><th>Avg Cost</th><th>Value</th></tr></thead>
+                                        <tbody>
+                                            {bootstrapPreview.mapped.map(p => (
+                                                <tr key={p.symbol}>
+                                                    <td><strong>{p.symbol}</strong></td>
+                                                    <td>{p.category}</td>
+                                                    <td>{p.units.toFixed(4)}</td>
+                                                    <td>Rs {p.avg_cost.toLocaleString()}</td>
+                                                    <td>Rs {p.value.toLocaleString()}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                                {bootstrapPreview.liquidcase_units > 0 && (
+                                    <p style={{ marginBottom: "8px" }}>War chest ({bootstrapPreview.liquidcase_units.toFixed(4)} LIQUIDCASE units) will also be seeded.</p>
+                                )}
+                                {bootstrapPreview.possible_misses.length > 0 && (
+                                    <div className="status error" style={{ marginBottom: "12px" }}>
+                                        ⚠ {bootstrapPreview.possible_misses.length} holding(s) look like ETFs but aren't in your candidates.csv:&nbsp;
+                                        {bootstrapPreview.possible_misses.map(m => m.symbol).join(", ")}
+                                    </div>
+                                )}
+                                <p style={{ color: "#718096", fontSize: "0.85em", marginBottom: "16px" }}>
+                                    {bootstrapPreview.ignored_count} other holding(s) (stocks + non-whitelisted ETFs) ignored — never touched.
+                                </p>
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                    <button className="btn btn-primary" onClick={applyBootstrap} disabled={bootstrapApplying}>
+                                        {bootstrapApplying ? "Applying..." : "✔ Apply — Write portfolio.json"}
+                                    </button>
+                                    <button className="btn btn-danger" onClick={() => setBootstrapPreview(null)}>Cancel</button>
+                                </div>
+                            </div>
+                        )}
 
                         {portfolio && (
                             <div>
@@ -432,14 +533,7 @@
                                         <h3 style={{ marginTop: "30px", marginBottom: "15px" }}>Holdings</h3>
                                         <table className="holdings-table">
                                             <thead>
-                                                <tr>
-                                                    <th>Symbol</th>
-                                                    <th>Units</th>
-                                                    <th>Avg Cost</th>
-                                                    <th>LTP</th>
-                                                    <th>Value</th>
-                                                    <th>P&L</th>
-                                                </tr>
+                                                <tr><th>Symbol</th><th>Units</th><th>Avg Cost</th><th>LTP</th><th>Value</th><th>P&L</th></tr>
                                             </thead>
                                             <tbody>
                                                 {portfolio.holdings.map((h) => (
@@ -458,20 +552,98 @@
                                         </table>
                                     </div>
                                 )}
+                            </div>
+                        )}
 
-                                {ranked.length > 0 && (
-                                    <div>
-                                        <h3 style={{ marginTop: "30px", marginBottom: "15px" }}>Today's Rankings</h3>
-                                        {ranked.map((r) => (
-                                            <div key={r.symbol} className="rank-item">
-                                                <div>
-                                                    <strong>#{r.rank}</strong> {r.symbol} ({r.category})
-                                                </div>
-                                                <div>Score: {r.score.toFixed(3)}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        {/* Full Strategy Run Results */}
+                        {runResult && (
+                            <div style={{ marginTop: "30px" }}>
+                                <h3 style={{ marginBottom: "16px" }}>Last Run Results
+                                    <span style={{ fontSize: "0.75em", fontWeight: "normal", color: "#718096", marginLeft: "10px" }}>
+                                        DRY RUN — no orders placed
+                                    </span>
+                                </h3>
+
+                                {/* Sells */}
+                                <div style={{ marginBottom: "20px" }}>
+                                    <h4 style={{ marginBottom: "8px", color: "#c53030" }}>
+                                        Sells ({runResult.sells.length})
+                                    </h4>
+                                    {runResult.sells.length === 0 ? (
+                                        <p style={{ color: "#718096", fontSize: "0.9em" }}>No exits triggered today.</p>
+                                    ) : (
+                                        <table className="holdings-table">
+                                            <thead><tr><th>Symbol</th><th>Category</th><th>Shares</th><th>Price</th><th>Value</th><th>Reason</th></tr></thead>
+                                            <tbody>
+                                                {runResult.sells.map((s, i) => (
+                                                    <tr key={i}>
+                                                        <td><strong>{s.symbol}</strong></td>
+                                                        <td>{s.category}</td>
+                                                        <td>{s.shares.toFixed(4)}</td>
+                                                        <td>Rs {s.price.toLocaleString()}</td>
+                                                        <td>Rs {(s.shares * s.price).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                        <td style={{ color: "#718096", fontSize: "0.85em" }}>{s.reason}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {/* SIP Buys */}
+                                <div style={{ marginBottom: "20px" }}>
+                                    <h4 style={{ marginBottom: "8px", color: "#276749" }}>
+                                        SIP Buys — ₹{(5000).toLocaleString()} monthly ({Object.keys(runResult.sip_buys).length} symbols)
+                                    </h4>
+                                    {Object.keys(runResult.sip_buys).length === 0 ? (
+                                        <p style={{ color: "#718096", fontSize: "0.9em" }}>No SIP buy today (not SIP day or no eligible MCAP ETFs).</p>
+                                    ) : (
+                                        <table className="holdings-table">
+                                            <thead><tr><th>Symbol</th><th>Allocated</th></tr></thead>
+                                            <tbody>
+                                                {Object.entries(runResult.sip_buys).map(([sym, amt]) => (
+                                                    <tr key={sym}>
+                                                        <td><strong>{sym}</strong></td>
+                                                        <td>Rs {amt.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {/* Tactical Buys */}
+                                <div style={{ marginBottom: "20px" }}>
+                                    <h4 style={{ marginBottom: "8px", color: "#2b6cb0" }}>
+                                        Tactical Buys ({Object.keys(runResult.tactical_buys).length} symbols)
+                                    </h4>
+                                    {Object.keys(runResult.tactical_buys).length === 0 ? (
+                                        <p style={{ color: "#718096", fontSize: "0.9em" }}>No tactical buy today (no eligible candidates or insufficient war chest).</p>
+                                    ) : (
+                                        <table className="holdings-table">
+                                            <thead><tr><th>Symbol</th><th>Allocated</th></tr></thead>
+                                            <tbody>
+                                                {Object.entries(runResult.tactical_buys).map(([sym, amt]) => (
+                                                    <tr key={sym}>
+                                                        <td><strong>{sym}</strong></td>
+                                                        <td>Rs {amt.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {/* Rankings */}
+                                <div>
+                                    <h4 style={{ marginBottom: "8px" }}>Today's Rankings</h4>
+                                    {runResult.ranked.map((r) => (
+                                        <div key={r.symbol} className="rank-item">
+                                            <div><strong>#{r.rank}</strong> {r.symbol} <span style={{ color: "#718096", fontSize: "0.85em" }}>({r.category})</span></div>
+                                            <div style={{ color: r.score >= 0 ? "#276749" : "#c53030" }}>Score: {r.score.toFixed(3)}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
