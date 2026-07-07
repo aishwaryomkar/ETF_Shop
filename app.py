@@ -82,11 +82,14 @@ def login():
         return jsonify({"error": "request_token required"}), 400
 
     try:
-        kite = get_kite(force_login=False)
+        from kiteconnect import KiteConnect
+        api_key = os.environ.get("KITE_API_KEY")
         api_secret = os.environ.get("KITE_API_SECRET")
+        kite = KiteConnect(api_key=api_key)
         session_data = kite.generate_session(request_token, api_secret=api_secret)
         access_token = session_data["access_token"]
         session["access_token"] = access_token
+        kite_auth._save_token(access_token)
         log.info("User logged in via web app")
         return jsonify({"status": "success"})
     except Exception as e:
