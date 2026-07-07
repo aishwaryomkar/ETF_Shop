@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from functools import wraps
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request, session, send_from_directory
 from flask_cors import CORS
 
 # Add ETF_Shop modules to path
@@ -32,7 +32,10 @@ import kite_auth
 from kite_auth import get_kite
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-change-in-prod")
+_secret = os.environ.get("SESSION_SECRET")
+if not _secret:
+    raise RuntimeError("SESSION_SECRET environment variable is required but not set.")
+app.secret_key = _secret
 CORS(app)
 
 log = logging.getLogger(__name__)
@@ -47,6 +50,15 @@ def require_auth(f):
             return jsonify({"error": "Not authenticated"}), 401
         return f(*args, **kwargs)
     return decorated
+
+
+_BASE_DIR = Path(__file__).parent
+
+
+@app.route("/")
+def index():
+    """Serve the dashboard."""
+    return send_from_directory(str(_BASE_DIR), "index.html")
 
 
 @app.route("/api/auth-status", methods=["GET"])
@@ -92,9 +104,13 @@ def logout():
 
 @app.route("/api/login-url", methods=["GET"])
 def login_url():
-    """Get the Kite login URL to redirect the user to."""
+    """Get the Kite login URL — no auth attempt, just build the URL."""
     try:
-        kite = get_kite(force_login=False)
+        from kiteconnect import KiteConnect
+        api_key = os.environ.get("KITE_API_KEY")
+        if not api_key:
+            return jsonify({"error": "KITE_API_KEY not configured"}), 500
+        kite = KiteConnect(api_key=api_key)
         url = kite.login_url()
         return jsonify({"login_url": url})
     except Exception as e:
