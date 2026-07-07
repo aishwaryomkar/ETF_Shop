@@ -32,7 +32,7 @@ import kite_auth
 from kite_auth import get_kite
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "dev-key-change-in-prod")
+app.secret_key = os.environ.get("SESSION_SECRET", "dev-key-change-in-prod")
 CORS(app)
 
 log = logging.getLogger(__name__)
